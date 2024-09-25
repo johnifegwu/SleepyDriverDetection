@@ -31,7 +31,7 @@ def create_cnn_model():
         print(f"Error in creating CNN model: {e}")
         return None
 
-# Load and preprocess dataset (dummy implementation)
+# Load and preprocess dataset
 def load_dataset(path):
     try:
         image_size = (64, 64)  # Define the image size (same as expected by CNN)
