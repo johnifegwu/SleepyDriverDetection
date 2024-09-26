@@ -1,3 +1,5 @@
 .venv/
-models/
-trained_models/
+models/ddd_dataset/TrainingSet/
+models/ddd_dataset/TestSet/
+models/ddd_dataset/ImprovementSet/
+trained_models/sleepy_driver_detection_model.h5

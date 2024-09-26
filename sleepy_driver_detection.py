@@ -1,4 +1,3 @@
-import os
 import cv2
 import mtcnn
 import dlib
@@ -7,16 +6,16 @@ import tensorflow as tf
 import pygame
 
 # Load Haar Cascade classifiers
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+face_cascade = cv2.CascadeClassifier('files/haarcascade_frontalface_default.xml')
+eye_cascade = cv2.CascadeClassifier('files/haarcascade_eye.xml')
 
 # Initialize MTCNN detector and facial landmark predictor
 mtcnn_detector = mtcnn.MTCNN()
-dlib_predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+dlib_predictor = dlib.shape_predictor("files/shape_predictor_68_face_landmarks.dat")
 
 # Load sound file for alarm
 pygame.mixer.init()
-sound = pygame.mixer.Sound("alarm.wav")
+sound = pygame.mixer.Sound("media/alarm.mp3")
 
 # Load the trained model
 model = tf.keras.models.load_model("trained_models/sleepy_driver_detection_model.h5")
@@ -31,26 +30,38 @@ def preprocess_image(image):
         print(f"Error in preprocessing image: {e}")
         return None
 
-# Function to detect eyes and calculate aspect ratio (EAR)
+
+# Function to detect eyes and return landmarks using dlib
 def detect_eyes(gray_frame, faces):
     eyes = []
     for face in faces:
         (x, y, w, h) = face['box']
-        roi_gray = gray_frame[y:y + h, x:x + w]
-        eye_rects = eye_cascade.detectMultiScale(roi_gray)
-        if len(eye_rects) >= 2:
-            eye_rects = sorted(eye_rects, key=lambda x: x[2] * x[3], reverse=True)
-            eyes.append(eye_rects[0])
-            eyes.append(eye_rects[1])
+        rect = dlib.rectangle(x, y, x + w, y + h)
+        landmarks = dlib_predictor(gray_frame, rect)
+
+        # Left eye landmarks (points 36-41 in dlib's 68 point model)
+        left_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in range(36, 42)])
+
+        # Right eye landmarks (points 42-47 in dlib's 68 point model)
+        right_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in range(42, 48)])
+
+        eyes.append(left_eye)
+        eyes.append(right_eye)
+    
     return eyes
+
 
 # Function to calculate EAR (Eye Aspect Ratio)
 def calculate_ear(eye):
-    p1, p2, p3, p4, p5, p6 = eye
-    horizontal_distance = np.sqrt((p6[0] - p2[0])**2 + (p6[1] - p2[1])**2)
-    vertical_distance = np.sqrt((p4[0] - p3[0])**2 + (p4[1] - p3[1])**2)
-    ear = vertical_distance / horizontal_distance
+    # Coordinates for vertical eye landmarks
+    p2 = np.linalg.norm(eye[1] - eye[5])
+    p3 = np.linalg.norm(eye[2] - eye[4])
+    # Coordinates for horizontal eye landmarks
+    p1 = np.linalg.norm(eye[0] - eye[3])
+    # Eye aspect ratio
+    ear = (p2 + p3) / (2.0 * p1)
     return ear
+
 
 # Start capturing video
 cap = cv2.VideoCapture(0)
